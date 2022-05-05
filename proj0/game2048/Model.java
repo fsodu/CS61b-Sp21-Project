@@ -1,11 +1,12 @@
 package game2048;
 
+import java.util.ArrayList;
 import java.util.Formatter;
 import java.util.Observable;
 
 
 /** The state of a game of 2048.
- *  @author TODO: YOUR NAME HERE
+ *  @author Tianhui Huang
  */
 public class Model extends Observable {
     /** Current contents of the board. */
@@ -110,15 +111,84 @@ public class Model extends Observable {
         boolean changed;
         changed = false;
 
-        // TODO: Modify this.board (and perhaps this.score) to account
-        // for the tilt to the Side SIDE. If the board changed, set the
-        // changed local variable to true.
+        board.setViewingPerspective(side);
+        int size = board.size();
+
+        for (int col = 0; col < size; col ++) {
+
+            ArrayList<Integer> tileDex = new ArrayList<>();
+            Tile[] flatT = new Tile[4];
+
+            for (int i = size-1; i > -1; i--) {
+                if (board.tile(col, i) != null) {
+                    tileDex.add(i);
+                }
+            }
+            for (int i = 0; i < tileDex.size(); i++) {
+                flatT[i] = board.tile(col, tileDex.get(i));
+            }
+
+            switch (tileDex.size()) {
+                case 1 -> {
+                    board.move(col, 3, flatT[0]);
+                    changed = changed || (tileDex.get(0) != 3);
+                }
+                case 2 -> {
+                    board.move(col, 3, flatT[0]);
+                    boolean merged = checkMove(flatT[0], flatT[1], col, 3);
+                    changed = changed || merged || (tileDex.get(0) != 3) || (tileDex.get(1) != 2);
+                }
+                case 3 -> {
+                    board.move(col, 3, flatT[0]);
+                    boolean merged1 = checkMove(flatT[0], flatT[1], col, 3);
+                    boolean merged2 = merged1
+                            ? board.move(col, 2, flatT[2])
+                            : checkMove(flatT[1], flatT[2], col, 2);
+                    changed = changed || merged1 || merged2
+                            || (tileDex.get(0) != 3) || (tileDex.get(1) != 2) || (tileDex.get(2) != 1);
+                }
+                case 4 -> {
+                    boolean merged3 = checkMove(flatT[0], flatT[1], col, 3);
+                    boolean merged4 = false;
+                    boolean merged5 = false;
+                    if (!merged3) {
+                        merged4 = checkMove(flatT[1], flatT[2], col, 2);
+                        if (!merged4) {
+                            merged5 = checkMove(flatT[2], flatT[3], col, 1);
+                        } else {
+                            board.move(col, 1, flatT[3]);
+                        }
+                    } else {
+                        board.move(col, 2, flatT[2]);
+                        checkMove(flatT[2], flatT[3], col, 2);
+                    }
+                    changed = changed || merged3 || merged4 || merged5;
+                }
+                default -> {
+                }
+            }
+
+        }
+
+        board.setViewingPerspective(Side.NORTH);
 
         checkGameOver();
         if (changed) {
             setChanged();
         }
         return changed;
+    }
+
+
+    private boolean checkMove (Tile a, Tile b, int col, int row) {
+        if (a.value() == b.value()) {
+            board.move(col, row, b);
+            score += (b.value()*2);
+            return true;
+        } else {
+            board.move(col, (row-1), b);
+            return false;
+        }
     }
 
     /** Checks if the game is over and sets the gameOver variable
@@ -137,7 +207,13 @@ public class Model extends Observable {
      *  Empty spaces are stored as null.
      * */
     public static boolean emptySpaceExists(Board b) {
-        // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row ++) {
+            for (int col = 0; col < b.size(); col ++) {
+                if (b.tile(col, row) == null) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -147,7 +223,16 @@ public class Model extends Observable {
      * given a Tile object t, we get its value with t.value().
      */
     public static boolean maxTileExists(Board b) {
-        // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row ++) {
+            for (int col = 0; col < b.size(); col ++) {
+                if (b.tile(col, row) == null) {
+                    continue;
+                }
+                if (b.tile(col, row).value() == MAX_PIECE) {
+                        return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -158,7 +243,24 @@ public class Model extends Observable {
      * 2. There are two adjacent tiles with the same value.
      */
     public static boolean atLeastOneMoveExists(Board b) {
-        // TODO: Fill in this function.
+        if (emptySpaceExists(b)) {
+            return true;
+        }
+        int maxIndex = b.size() -1;
+        for (int row = 0; row < maxIndex; row++) {
+            for (int col = 0; col < maxIndex; col++) {
+                if ((b.tile(col, row).value() == b.tile(col, row+1).value()) ||
+                    (b.tile(col, row).value() == b.tile(col + 1, row).value())) {
+                    return true;
+                }
+            }
+        }
+        for (int a = 0; a < maxIndex; a++) {
+            if ((b.tile(maxIndex, a).value() == b.tile(maxIndex, a+1).value()) ||
+                    (b.tile(a, maxIndex).value() == b.tile(a+1,maxIndex).value())) {
+                return true;
+            }
+        }
         return false;
     }
 
